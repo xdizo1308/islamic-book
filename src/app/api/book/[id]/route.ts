@@ -3,13 +3,15 @@ import { NextResponse } from "next/server";
 
 export async function GET(
   request: Request,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> } // 👈 params is a Promise here
 ) {
-  const { id } = context.params;
-  const metaUrl = `https://archive.org/metadata/${encodeURIComponent(id)}`;
+  const { id } = await context.params;        // 👈 await it
 
+  const metaUrl = `https://archive.org/metadata/${encodeURIComponent(id)}`;
   const res = await fetch(metaUrl, { next: { revalidate: 86400 } });
-  if (!res.ok) return NextResponse.json({ error: "Metadata fetch failed" }, { status: 502 });
+  if (!res.ok) {
+    return NextResponse.json({ error: "Metadata fetch failed" }, { status: 502 });
+  }
   const data = await res.json();
 
   const files: any[] = data?.files || [];
