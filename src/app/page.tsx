@@ -1,103 +1,124 @@
-import Image from "next/image";
+// ...existing code...
+"use client";
+import React, { useState } from "react";
+import Link from "next/link";
 
-export default function Home() {
+type Doc = {
+  identifier: string;
+  title: string;
+  author?: string;
+  year?: string;
+  language?: string;
+  licenseUrl?: string;
+  downloads?: number;
+  coverUrl?: string;
+  sourcePage: string;
+  formats?: { label: string; url: string; size?: number }[];
+};
+
+function ThemeToggle() {
+  const [isDark, setIsDark] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem("theme") === "dark";
+    } catch {
+      return false;
+    }
+  });
+
+  const toggle = () => {
+    try {
+      const next = !isDark;
+      setIsDark(next);
+      localStorage.setItem("theme", next ? "dark" : "light");
+      document.documentElement.style.colorScheme = next ? "dark" : "light";
+    } catch {}
+  };
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+    <button onClick={toggle} aria-label="Toggle theme" className="btn">
+      {isDark ? "🌙" : "☀️"}
+    </button>
   );
 }
+
+export default function HomePage() {
+  const [q, setQ] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [docs, setDocs] = useState<Doc[]>([]);
+  const [searched, setSearched] = useState(false);
+
+  async function search(e?: React.FormEvent) {
+    e?.preventDefault();
+    if (!q.trim()) return;
+    setLoading(true);
+    setSearched(true);
+
+    try {
+      // server route is at /search (app route). Use `limit` to match route.ts expectations.
+      const res = await fetch(`/search?q=${encodeURIComponent(q)}&limit=12`);
+      const data = await res.json();
+      setDocs(data.docs || []);
+    } catch {
+      setDocs([]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <main>
+      <header className="header">
+        <div className="container header__inner">
+          <h1 className="logo">📚 Open Islamic Library</h1>
+          <ThemeToggle />
+        </div>
+      </header>
+
+      <section className="container search">
+        <form onSubmit={search} className="search__form">
+          <input
+            className="input"
+            placeholder="Search archive.org for books, authors, topics..."
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            aria-label="Search query"
+          />
+          <button type="submit" className="btn" disabled={loading}>
+            {loading ? "Searching…" : "Search"}
+          </button>
+        </form>
+
+        {searched && !loading && docs.length === 0 && (
+          <p className="muted">No results found.</p>
+        )}
+
+        <ul className="results">
+          {docs.map((d) => (
+            <li key={d.identifier} className="result">
+              <a href={d.sourcePage} target="_blank" rel="noreferrer" className="result__cover">
+                <img src={d.coverUrl} alt={d.title} width={120} height={160} />
+              </a>
+              <div className="result__meta">
+                <h3 className="result__title">
+                  <Link href={d.sourcePage}>{d.title || d.identifier}</Link>
+                </h3>
+                {d.author && <p className="muted">{d.author}</p>}
+                <p className="muted">{[d.year, d.language].filter(Boolean).join(" • ")}</p>
+                {d.formats && d.formats.length > 0 && (
+                  <p className="formats">
+                    {d.formats.map((f) => (
+                      <a key={f.url} href={f.url} target="_blank" rel="noreferrer" className="format">
+                        {f.label}
+                      </a>
+                    ))}
+                  </p>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+    </main>
+  );
+}
+// ...existing code...
