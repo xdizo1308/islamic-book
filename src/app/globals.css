@@ -1,26 +1,305 @@
-@import "tailwindcss";
+/* src/app/globals.css */
 
+/* ---------- Theme Variables ---------- */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #f9f9f9;
+  --text: #111;
+  --muted: #666;
+  --panel: #ffffff;
+  --border: #e5e5e5;
+  --accent: #000;
+  --shadow: rgba(0, 0, 0, 0.08);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+html.dark {
+  --bg: #000;
+  --text: #f2f2f2;
+  --muted: #9e9e9e;
+  --panel: #0d0d0d;
+  --border: #1a1a1a;
+  --accent: #fff;
+  --shadow: rgba(255, 255, 255, 0.06);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ---------- Global Reset ---------- */
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.3s ease, color 0.3s ease;
 }
+
+/* ---------- Layout ---------- */
+.container {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+/* ---------- Header ---------- */
+.header {
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 2px 6px var(--shadow);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.header__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-block: 12px;
+}
+
+.logo {
+  font-weight: 800;
+  font-size: 20px;
+  letter-spacing: -0.5px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+/* ---------- Search ---------- */
+.search {
+  display: flex;
+  gap: 10px;
+  padding-block: 20px;
+}
+
+.input {
+  flex: 1;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 15px;
+  transition: border 0.2s ease;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.btn {
+  border: 1px solid var(--border);
+  background: var(--accent);
+  color: var(--bg);
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 15px;
+  cursor: pointer;
+  text-decoration: none;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  transition: all 0.3s ease;
+}
+
+.btn:hover {
+  opacity: 0.85;
+}
+
+.btn.small {
+  font-size: 14px;
+  padding: 6px 12px;
+  border-radius: 6px;
+}
+
+/* ---------- Grid ---------- */
+.grid {
+  display: grid;
+  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* ---------- Cards ---------- */
+.card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px var(--shadow);
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 4px 12px var(--shadow);
+}
+
+.cover {
+  width: 100%;
+  height: 240px;
+  object-fit: cover;
+  background: #ddd;
+}
+
+.card__body {
+  padding: 16px;
+  display: grid;
+  gap: 8px;
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.meta {
+  color: var(--muted);
+  font-size: 14px;
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn.secondary {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.btn.secondary:hover {
+  background: var(--text);
+  color: var(--bg);
+}
+
+/* ---------- Chips ---------- */
+.formats {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.chip {
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  border-radius: 999px;
+  text-decoration: none;
+  color: var(--text);
+  background: transparent;
+  font-size: 12px;
+  transition: all 0.2s ease;
+}
+
+.chip:hover {
+  background: var(--text);
+  color: var(--bg);
+}
+
+/* ---------- Book Detail ---------- */
+.book {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 30px;
+  padding-block: 40px;
+}
+
+.detailCover {
+  width: 100%;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+}
+
+.detailTitle {
+  margin: 0 0 10px;
+  font-size: 26px;
+  font-weight: 800;
+}
+
+.sectionTitle {
+  font-size: 18px;
+  font-weight: 700;
+  margin-top: 24px;
+}
+
+.dlList {
+  list-style: none;
+  padding: 0;
+  margin: 12px 0;
+  display: grid;
+  gap: 10px;
+}
+
+.dlItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  padding: 10px 12px;
+  border-radius: 10px;
+}
+
+.link {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+.muted {
+  color: var(--muted);
+}
+/* Section header */
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 14px 0 10px;
+}
+.sectionHeader h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+/* Force 4 columns on wide screens, responsive down */
+.grid-4 {
+  grid-template-columns: repeat(4, 1fr);
+}
+@media (max-width: 1100px) { .grid-4 { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 900px)  { .grid-4 { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 640px)  { .grid-4 { grid-template-columns: 1fr; } }
+
+/* Floating Action Button (theme toggle) */
+.fab {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px var(--shadow);
+  transition: transform .15s ease, box-shadow .15s ease, background .15s ease;
+}
+.fab:hover { transform: translateY(-2px); box-shadow: 0 8px 18px var(--shadow); }
