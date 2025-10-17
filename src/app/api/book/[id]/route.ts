@@ -1,53 +1,39 @@
-// ...existing code...
+// src/app/api/book/[id]/route.ts
 import { NextResponse } from "next/server";
 
-export async function GET(_: Request, { params }: { params: { id: string } }) {
-  const id = params.id;
+export async function GET(
+  request: Request,
+  context: { params: { id: string } }
+) {
+  const { id } = context.params;
   const metaUrl = `https://archive.org/metadata/${encodeURIComponent(id)}`;
+
   const res = await fetch(metaUrl, { next: { revalidate: 86400 } });
   if (!res.ok) return NextResponse.json({ error: "Metadata fetch failed" }, { status: 502 });
   const data = await res.json();
 
   const files: any[] = data?.files || [];
   const preferred = ["pdf", "epub", "txt", "html", "djvu"];
-  const preferredSet = new Set(preferred);
-
   const formats = files
-    .filter((f) => f?.name)
+    .filter((f) => f?.name && f?.format)
     .map((f) => {
-      const name = String(f.name);
-      const ext = name.split(".").pop()?.toLowerCase() || "";
-      const formatLower = String(f.format || "").toLowerCase();
-      const key = ext || formatLower;
+      const ext = String(f.name).split(".").pop()?.toLowerCase() || "";
       const label =
-        ext === "pdf"
-          ? "PDF"
-          : ext === "epub"
-          ? "EPUB"
-          : ext === "txt"
-          ? "Plain Text"
-          : ext === "html"
-          ? "HTML"
-          : ext === "djvu"
-          ? "DJVU"
-          : f.format || ext.toUpperCase();
-
+        ext === "pdf" ? "PDF" :
+        ext === "epub" ? "EPUB" :
+        ext === "txt" ? "Plain Text" :
+        ext === "html" ? "HTML" :
+        ext === "djvu" ? "DJVU" : f.format;
       return {
-        key,
         label,
-        url: `https://archive.org/download/${encodeURIComponent(id)}/${encodeURIComponent(name)}`,
+        url: `https://archive.org/download/${id}/${encodeURIComponent(f.name)}`,
         size: f.size ? Number(f.size) : undefined,
       };
     })
-    .filter((f) => preferredSet.has(f.key))
-    .sort((a, b) => {
-      const ia = preferred.indexOf(a.key);
-      const ib = preferred.indexOf(b.key);
-      return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
-    })
-    .map(({ key, ...rest }) => rest); // drop internal key before returning
+    .filter((f) => /^(PDF|EPUB|Plain Text|HTML|DJVU)$/.test(f.label))
+    .sort((a, b) => preferred.indexOf(a.label.toLowerCase()) - preferred.indexOf(b.label.toLowerCase()));
 
-  const coverUrl = `https://archive.org/services/img/${encodeURIComponent(id)}`;
+  const coverUrl = `https://archive.org/services/img/${id}`;
 
   return NextResponse.json({
     id,
@@ -57,9 +43,8 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
     language: data?.metadata?.language,
     licenseUrl: data?.metadata?.licenseurl,
     rights: data?.metadata?.rights,
-    sourcePage: `https://archive.org/details/${encodeURIComponent(id)}`,
+    sourcePage: `https://archive.org/details/${id}`,
     coverUrl,
     formats,
   });
 }
-// ...existing code...

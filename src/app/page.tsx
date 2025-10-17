@@ -1,7 +1,6 @@
-// ...existing code...
 "use client";
-import React, { useState } from "react";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
 type Doc = {
   identifier: string;
@@ -16,54 +15,29 @@ type Doc = {
   formats?: { label: string; url: string; size?: number }[];
 };
 
-function ThemeToggle() {
-  const [isDark, setIsDark] = useState<boolean>(() => {
-    try {
-      return localStorage.getItem("theme") === "dark";
-    } catch {
-      return false;
-    }
-  });
-
-  const toggle = () => {
-    try {
-      const next = !isDark;
-      setIsDark(next);
-      localStorage.setItem("theme", next ? "dark" : "light");
-      document.documentElement.style.colorScheme = next ? "dark" : "light";
-    } catch {}
-  };
-
-  return (
-    <button onClick={toggle} aria-label="Toggle theme" className="btn">
-      {isDark ? "🌙" : "☀️"}
-    </button>
-  );
-}
-
 export default function HomePage() {
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(false);
   const [docs, setDocs] = useState<Doc[]>([]);
   const [searched, setSearched] = useState(false);
 
-  async function search(e?: React.FormEvent) {
-    e?.preventDefault();
+  async function search() {
     if (!q.trim()) return;
     setLoading(true);
     setSearched(true);
-
-    try {
-      // server route is at /search (app route). Use `limit` to match route.ts expectations.
-      const res = await fetch(`/search?q=${encodeURIComponent(q)}&limit=12`);
-      const data = await res.json();
-      setDocs(data.docs || []);
-    } catch {
-      setDocs([]);
-    } finally {
-      setLoading(false);
-    }
+    const res = await fetch(`/api/search?q=${encodeURIComponent(q)}&rows=12`);
+    const data = await res.json();
+    setDocs(data.docs || []);
+    setLoading(false);
   }
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Enter") search();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [q]);
 
   return (
     <main>
@@ -75,43 +49,42 @@ export default function HomePage() {
       </header>
 
       <section className="container search">
-        <form onSubmit={search} className="search__form">
-          <input
-            className="input"
-            placeholder="Search archive.org for books, authors, topics..."
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            aria-label="Search query"
-          />
-          <button type="submit" className="btn" disabled={loading}>
-            {loading ? "Searching…" : "Search"}
-          </button>
-        </form>
+        <input
+          className="input"
+          placeholder="Search titles, authors, subjects…"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+        <button className="btn" onClick={search} disabled={loading || !q.trim()}>
+          {loading ? "Searching…" : "Search"}
+        </button>
+      </section>
 
+      <section className="container">
         {searched && !loading && docs.length === 0 && (
-          <p className="muted">No results found.</p>
+          <p className="muted">No results. Try another query (e.g., "Seerah", "Hadith").</p>
         )}
-
-        <ul className="results">
+        <ul className="grid">
           {docs.map((d) => (
-            <li key={d.identifier} className="result">
-              <a href={d.sourcePage} target="_blank" rel="noreferrer" className="result__cover">
-                <img src={d.coverUrl} alt={d.title} width={120} height={160} />
-              </a>
-              <div className="result__meta">
-                <h3 className="result__title">
-                  <Link href={d.sourcePage}>{d.title || d.identifier}</Link>
-                </h3>
-                {d.author && <p className="muted">{d.author}</p>}
-                <p className="muted">{[d.year, d.language].filter(Boolean).join(" • ")}</p>
+            <li key={d.identifier} className="card">
+              {d.coverUrl && <img src={d.coverUrl} alt="" className="cover" />}
+              <div className="card__body">
+                <h3 className="title">{d.title}</h3>
+                <p className="meta">
+                  {d.author || "Unknown author"}
+                  {d.year ? ` • ${d.year}` : ""}
+                  {d.language ? ` • ${d.language}` : ""}
+                </p>
+                <div className="actions">
+                  <Link href={`/book/${d.identifier}`} className="btn secondary">Details</Link>
+                  <a href={d.sourcePage} className="btn outline" target="_blank" rel="noreferrer">Source</a>
+                </div>
                 {d.formats && d.formats.length > 0 && (
-                  <p className="formats">
-                    {d.formats.map((f) => (
-                      <a key={f.url} href={f.url} target="_blank" rel="noreferrer" className="format">
-                        {f.label}
-                      </a>
+                  <div className="formats">
+                    {d.formats.slice(0, 3).map((f, i) => (
+                      <a key={i} className="chip" href={f.url} target="_blank" rel="noreferrer">{f.label}</a>
                     ))}
-                  </p>
+                  </div>
                 )}
               </div>
             </li>
@@ -121,4 +94,30 @@ export default function HomePage() {
     </main>
   );
 }
-// ...existing code...
+
+function ThemeToggle() {
+  const [mounted, setMounted] = useState(false);
+  const [dark, setDark] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+    const stored = localStorage.getItem("theme");
+    const prefers = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    const isDark = stored ? stored === 'dark' : prefers;
+    document.documentElement.classList.toggle('dark', isDark);
+    setDark(isDark);
+  }, []);
+  if (!mounted) return null;
+  return (
+    <button
+      className="btn small"
+      onClick={() => {
+        const next = !dark;
+        setDark(next);
+        document.documentElement.classList.toggle('dark', next);
+        localStorage.setItem("theme", next ? 'dark' : 'light');
+      }}
+    >
+      {dark ? '☀️ Light' : '🌙 Dark'}
+    </button>
+  );
+}

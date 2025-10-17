@@ -1,87 +1,93 @@
-// ...existing code...
+// src/app/api/search/route.ts
 import { NextResponse } from "next/server";
 
+const IA_SEARCH = "https://archive.org/advancedsearch.php";
 const IA_META = (id: string) => `https://archive.org/metadata/${encodeURIComponent(id)}`;
-const IA_THUMB = (id: string) =>
-  `https://archive.org/services/get-item-image.php?identifier=${encodeURIComponent(id)}&size=medium`;
+const IA_THUMB = (id: string) => `https://archive.org/services/img/${encodeURIComponent(id)}`;
+
+function buildQuery(q: string) {
+  const parts = [
+    '(mediatype:"texts")',
+    '(licenseurl:* OR rights:* OR collection:(opensource) OR collection:(community_texts))',
+    `(title:(${q}) OR creator:(${q}) OR subject:(${q}))`,
+  ];
+  return parts.join(" AND ");
+}
 
 export async function GET(req: Request) {
-  try {
-    const url = new URL(req.url);
-    const q = String(url.searchParams.get("q") || "").trim();
-    const page = Math.max(1, Number(url.searchParams.get("page") || 1));
-    const limit = Math.min(50, Math.max(1, Number(url.searchParams.get("limit") || 10)));
+  const { searchParams } = new URL(req.url);
+  const q = (searchParams.get("q") || "").trim();
+  const rows = Math.min(Number(searchParams.get("rows") || "12"), 24);
 
-    if (!q) return NextResponse.json({ total: 0, docs: [] });
+  if (!q) return NextResponse.json({ total: 0, docs: [] });
 
-    const searchUrl = `https://archive.org/advancedsearch.php?q=${encodeURIComponent(
-      q
-    )}&fl=identifier,title,creator,date,language,licenseurl,rights,downloads&output=json&rows=${limit}&page=${page}`;
+  const url = new URL(IA_SEARCH);
+  url.searchParams.set("q", buildQuery(q));
+  [
+    "identifier",
+    "title",
+    "creator",
+    "date",
+    "language",
+    "licenseurl",
+    "rights",
+    "downloads",
+  ].forEach((f) => url.searchParams.append("fl[]", f));
+  url.searchParams.append("sort[]", "downloads desc");
+  url.searchParams.set("rows", String(rows));
+  url.searchParams.set("output", "json");
 
-    const sres = await fetch(searchUrl, { next: { revalidate: 60 } });
-    const sdata = sres.ok ? await sres.json() : null;
-    const limited = sdata?.response?.docs || [];
+  const sres = await fetch(url.toString(), { next: { revalidate: 3600 } });
+  if (!sres.ok) return NextResponse.json({ error: "Search failed" }, { status: 502 });
+  const sdata = await sres.json();
+  const baseDocs: any[] = sdata?.response?.docs || [];
 
-    const docs = await Promise.all(
-      limited.map(async (d: any) => {
-        const id: string = String(d.identifier || "");
-        let formats: { label: string; url: string; size?: number }[] = [];
-
-        try {
-          const mres = await fetch(IA_META(id), { next: { revalidate: 86400 } });
-          if (mres.ok) {
-            const meta = await mres.json();
-            const files: any[] = meta?.files || [];
-            formats = files
-              .filter((f) => f?.name && f?.format)
-              .map((f) => {
-                const ext = String(f.name).split(".").pop()?.toLowerCase() || "";
-                const label =
-                  ext === "pdf"
-                    ? "PDF"
-                    : ext === "epub"
-                    ? "EPUB"
-                    : ext === "txt"
-                    ? "Plain Text"
-                    : ext === "html"
-                    ? "HTML"
-                    : ext === "djvu"
-                    ? "DJVU"
-                    : f.format || ext.toUpperCase();
-
-                return {
-                  label,
-                  url: `https://archive.org/download/${encodeURIComponent(id)}/${encodeURIComponent(f.name)}`,
-                  size: f.size ? Number(f.size) : undefined,
-                };
-              })
-              .filter((f) => /^(PDF|EPUB|Plain Text|HTML|DJVU)$/.test(f.label))
-              .slice(0, 5);
-          }
-        } catch (err) {
-          // ignore metadata errors per original behavior
+  const limited = baseDocs.slice(0, rows);
+  const docs = await Promise.all(
+    limited.map(async (d) => {
+      const id: string = d.identifier;
+      let formats: { label: string; url: string; size?: number }[] = [];
+      try {
+        const mres = await fetch(IA_META(id), { next: { revalidate: 86400 } });
+        if (mres.ok) {
+          const meta = await mres.json();
+          const files: any[] = meta?.files || [];
+          formats = files
+            .filter((f) => f?.name && f?.format)
+            .map((f) => {
+              const ext = String(f.name).split(".").pop()?.toLowerCase() || "";
+              const label =
+                ext === "pdf" ? "PDF" :
+                ext === "epub" ? "EPUB" :
+                ext === "txt" ? "Plain Text" :
+                ext === "html" ? "HTML" :
+                ext === "djvu" ? "DJVU" : f.format;
+              return {
+                label,
+                url: `https://archive.org/download/${id}/${encodeURIComponent(f.name)}`,
+                size: f.size ? Number(f.size) : undefined,
+              };
+            })
+            .filter((f) => /^(PDF|EPUB|Plain Text|HTML|DJVU)$/.test(f.label))
+            .slice(0, 5);
         }
+      } catch {}
 
-        return {
-          identifier: id,
-          title: d.title || "",
-          author: d.creator || "",
-          year: d.date || "",
-          language: d.language || "",
-          licenseUrl: d.licenseurl || null,
-          rights: d.rights || null,
-          downloads: d.downloads ?? null,
-          coverUrl: IA_THUMB(id),
-          sourcePage: `https://archive.org/details/${encodeURIComponent(id)}`,
-          formats,
-        };
-      })
-    );
+      return {
+        identifier: id,
+        title: d.title,
+        author: d.creator,
+        year: d.date,
+        language: d.language,
+        licenseUrl: d.licenseurl,
+        rights: d.rights,
+        downloads: d.downloads,
+        coverUrl: IA_THUMB(id),
+        sourcePage: `https://archive.org/details/${id}`,
+        formats,
+      };
+    })
+  );
 
-    const total = sdata?.response?.numFound ?? docs.length;
-    return NextResponse.json({ total, docs });
-  } catch (err) {
-    return NextResponse.json({ total: 0, docs: [], error: "internal_error" }, { status: 500 });
-  }
+  return NextResponse.json({ total: sdata?.response?.numFound || docs.length, docs });
 }
-// ...existing code...
